@@ -1,0 +1,9 @@
+[providers.subrouter]
+type = "openai"
+base_url = "https://subrouter.ai/v1"
+api_key = "sk-your-api-key-here"
+
+[models.default]
+provider = "subrouter"
+model = "claude-sonnet-4-6"
+max_context_size = 200000
