@@ -7,7 +7,7 @@ Unlike heavyweight AI coding tools, mini-cognit-cli is intentionally small (~150
 ## Features
 
 - **Agentic loop** — the LLM autonomously calls tools, observes results, and iterates until the task is done
-- **Built-in tools** — file read/write, shell execution, grep search — everything needed for coding tasks
+- **Built-in tools** — file read/write, shell execution, grep search, web search — everything needed for coding tasks
 - **Tool approval** — dangerous operations (shell commands) require user confirmation; bypass with `--yolo` when you trust it
 - **Context compaction** — automatically summarizes conversation history when approaching token limits, so long sessions don't break
 - **Any OpenAI-compatible API** — works with OpenAI, Anthropic (via proxies like subrouter), local models, or any provider with an OpenAI-compatible endpoint
@@ -100,7 +100,8 @@ src/cognit/
 │   ├── file_read.py    # Read files with line numbers
 │   ├── file_write.py   # Write/edit files
 │   ├── grep.py         # Search file contents
-│   └── shell.py        # Shell command execution
+│   ├── shell.py        # Shell command execution
+│   └── web_search.py   # Web search via DuckDuckGo
 └── ui/
     └── terminal.py     # Terminal I/O (prompt-toolkit + rich)
 ```

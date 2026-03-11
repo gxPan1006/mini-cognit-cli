@@ -7,7 +7,7 @@ import os
 from cognit.llm.openai_provider import OpenAIProvider
 from cognit.soul.agent import Agent, AgentConfig
 from cognit.soul.toolset import Toolset
-from cognit.tools import file_read, file_write, shell, grep
+from cognit.tools import file_read, file_write, shell, grep, web_search
 from cognit.ui.terminal import TerminalUI
 
 
@@ -76,6 +76,7 @@ class App:
         file_write.register(toolset)
         shell.register(toolset)
         grep.register(toolset)
+        web_search.register(toolset)
 
         # --- 3. Build system prompt ---
         system_prompt = SYSTEM_PROMPT.format(cwd=os.getcwd())
