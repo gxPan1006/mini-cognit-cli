@@ -21,6 +21,8 @@ def chat(
     api_key: Optional[str] = typer.Option(None, "--api-key", help="API key (or set OPENAI_API_KEY)"),
     max_steps: int = typer.Option(50, "--max-steps", help="Max agent loop steps per turn"),
     yolo: bool = typer.Option(False, "--yolo", "-y", help="Bypass all tool approval prompts (auto-approve everything)"),
+    thinking: bool = typer.Option(False, "--thinking", "-t", help="Enable extended thinking (reasoning models)"),
+    thinking_budget: int = typer.Option(10000, "--thinking-budget", help="Max tokens for thinking (default: 10000)"),
 ) -> None:
     """Start an interactive chat session with the AI agent."""
     from cognit.app import App
@@ -31,6 +33,8 @@ def chat(
         api_key=api_key,
         max_steps=max_steps,
         yolo=yolo,
+        thinking=thinking,
+        thinking_budget=thinking_budget,
     )
     asyncio.run(app.run())
 

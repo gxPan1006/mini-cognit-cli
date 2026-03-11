@@ -38,6 +38,7 @@ class Agent:
         self,
         user_input: str,
         on_text_delta: Callable[[str], None] | None = None,
+        on_thinking_delta: Callable[[str], None] | None = None,
         on_tool_start: Callable[[ToolCall], None] | None = None,
         on_tool_end: Callable[[ToolCall, str], None] | None = None,
         approval_callback: Callable[[ToolCall], bool] | None = None,
@@ -72,6 +73,7 @@ class Agent:
                 history=self.context.messages,
                 tool_executor=self.toolset,
                 on_text_delta=on_text_delta,
+                on_thinking_delta=on_thinking_delta,
                 on_tool_start=on_tool_start,
                 on_tool_end=on_tool_end,
             )

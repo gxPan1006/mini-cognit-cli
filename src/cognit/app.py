@@ -42,12 +42,16 @@ class App:
         api_key: str | None = None,
         max_steps: int = 50,
         yolo: bool = False,
+        thinking: bool = False,
+        thinking_budget: int = 10000,
     ) -> None:
         self.model = model
         self.base_url = base_url
         self.api_key = api_key
         self.max_steps = max_steps
         self.yolo = yolo
+        self.thinking = thinking
+        self.thinking_budget = thinking_budget
 
     async def run(self) -> None:
         # --- 1. Create LLM provider (CLI args > cognit.toml > env vars) ---
@@ -72,6 +76,8 @@ class App:
             model=model,
             base_url=base_url,
             api_key=api_key,
+            thinking=self.thinking,
+            thinking_budget=self.thinking_budget,
         )
 
         # --- 2. Build toolset ---
@@ -92,7 +98,11 @@ class App:
 
         # --- 5. Create UI ---
         ui = TerminalUI()
-        mode_label = f"{model} [yellow bold]YOLO[/yellow bold]" if self.yolo else model
+        mode_label = model
+        if self.thinking:
+            mode_label += " [magenta bold]THINKING[/magenta bold]"
+        if self.yolo:
+            mode_label += " [yellow bold]YOLO[/yellow bold]"
         ui.print_welcome(mode_label)
 
         # --- 6. Main REPL loop ---
@@ -133,6 +143,7 @@ class App:
                 await agent.run(
                     user_input,
                     on_text_delta=ui.on_text_delta,
+                    on_thinking_delta=ui.on_thinking_delta if self.thinking else None,
                     on_tool_start=ui.on_tool_start,
                     on_tool_end=ui.on_tool_end,
                     approval_callback=approval,

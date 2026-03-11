@@ -25,9 +25,13 @@ class OpenAIProvider:
         base_url: str | None = None,
         api_key: str | None = None,
         temperature: float = 0.0,
+        thinking: bool = False,
+        thinking_budget: int = 10000,
     ) -> None:
         self._model = model
         self._temperature = temperature
+        self._thinking = thinking
+        self._thinking_budget = thinking_budget
         self._client = openai.AsyncOpenAI(
             base_url=base_url,
             api_key=api_key,
@@ -55,9 +59,21 @@ class OpenAIProvider:
         kwargs: dict[str, Any] = {
             "model": self._model,
             "messages": messages,
-            "temperature": self._temperature,
             "stream": True,
         }
+
+        if self._thinking:
+            # Extended thinking: temperature must be 1, pass budget via extra_body
+            kwargs["temperature"] = 1
+            kwargs["extra_body"] = {
+                "thinking": {
+                    "type": "enabled",
+                    "budget_tokens": self._thinking_budget,
+                },
+            }
+        else:
+            kwargs["temperature"] = self._temperature
+
         if tools:
             kwargs["tools"] = tools
 
@@ -71,6 +87,11 @@ class OpenAIProvider:
                     delta = chunk.choices[0].delta if chunk.choices else None
                     if delta is None:
                         continue
+
+                    # Thinking/reasoning content (extended thinking models)
+                    reasoning = getattr(delta, "reasoning_content", None)
+                    if reasoning:
+                        yield {"type": "thinking_delta", "text": reasoning}
 
                     # Text content
                     if delta.content:

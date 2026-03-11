@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Sequence
 
-from cognit.llm.message import Message, TextPart, ToolCall
+from cognit.llm.message import Message, TextPart, ThinkPart, ToolCall
 
 
 @dataclass
@@ -40,10 +40,12 @@ async def generate(
     tools: Sequence[dict[str, Any]],
     history: Sequence[Message],
     on_text_delta: Callable[[str], None] | None = None,
+    on_thinking_delta: Callable[[str], None] | None = None,
 ) -> GenerateResult:
     """Call the LLM, stream deltas, return assembled Message."""
 
     text_parts: list[str] = []
+    thinking_parts: list[str] = []
     # tool_calls accumulator: index -> {id, name, arguments}
     tc_accum: dict[int, dict[str, str]] = {}
 
@@ -51,7 +53,13 @@ async def generate(
     async for delta in stream:
         dtype = delta["type"]
 
-        if dtype == "text_delta":
+        if dtype == "thinking_delta":
+            text = delta["text"]
+            thinking_parts.append(text)
+            if on_thinking_delta:
+                on_thinking_delta(text)
+
+        elif dtype == "text_delta":
             text = delta["text"]
             text_parts.append(text)
             if on_text_delta:
@@ -70,6 +78,10 @@ async def generate(
 
     # Assemble message
     content = []
+    full_thinking = "".join(thinking_parts)
+    if full_thinking:
+        content.append(ThinkPart(full_thinking))
+
     full_text = "".join(text_parts)
     if full_text:
         content.append(TextPart(full_text))
@@ -94,12 +106,13 @@ async def step(
     history: Sequence[Message],
     tool_executor: Any,  # Toolset
     on_text_delta: Callable[[str], None] | None = None,
+    on_thinking_delta: Callable[[str], None] | None = None,
     on_tool_start: Callable[[ToolCall], None] | None = None,
     on_tool_end: Callable[[ToolCall, str], None] | None = None,
 ) -> StepResult:
     """One step = generate() + execute all tool calls."""
 
-    result = await generate(provider, system_prompt, tools, history, on_text_delta)
+    result = await generate(provider, system_prompt, tools, history, on_text_delta, on_thinking_delta)
     msg = result.message
 
     tool_results: list[Message] = []

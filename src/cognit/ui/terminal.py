@@ -23,6 +23,7 @@ class TerminalUI:
         self._current_text = ""
         self._streaming = False
         self._needs_newline = False  # track if we need a newline before tool output
+        self._in_thinking = False  # track if we're currently streaming thinking
 
     def print_welcome(self, model: str) -> None:
         self.console.print()
@@ -62,8 +63,26 @@ class TerminalUI:
         self._needs_newline = False
         self.console.print()
 
+    def on_thinking_delta(self, text: str) -> None:
+        """Stream thinking/reasoning content in dimmed style."""
+        if not self._in_thinking:
+            self._in_thinking = True
+            # Print thinking header
+            print("\033[2m", end="", flush=True)  # dim
+        print(text, end="", flush=True)
+        self._needs_newline = not text.endswith("\n")
+
+    def _end_thinking(self) -> None:
+        """Close thinking block if active."""
+        if self._in_thinking:
+            self._in_thinking = False
+            self._ensure_newline()
+            print("\033[0m", end="", flush=True)  # reset
+            self.console.print("  [dim]───[/dim]")
+
     def on_text_delta(self, text: str) -> None:
         """Stream text as it arrives from the LLM."""
+        self._end_thinking()
         print(text, end="", flush=True)
         self._current_text += text
         self._needs_newline = not text.endswith("\n")
@@ -77,6 +96,7 @@ class TerminalUI:
     def end_response(self) -> None:
         """Called when the agent finishes responding."""
         if self._streaming:
+            self._end_thinking()
             self._ensure_newline()
             self._streaming = False
             self.console.print()
