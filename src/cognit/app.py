@@ -83,8 +83,8 @@ class App:
         web_search.register(toolset)
 
         # --- 3. Build system prompt ---
-        from datetime import date
-        system_prompt = SYSTEM_PROMPT.format(cwd=os.getcwd(), date=date.today().isoformat())
+        from datetime import datetime
+        system_prompt = SYSTEM_PROMPT.format(cwd=os.getcwd(), date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
         # --- 4. Create agent ---
         config = AgentConfig(max_steps=self.max_steps)
