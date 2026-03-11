@@ -26,6 +26,9 @@ You help users with software engineering tasks: writing code, debugging, explori
 
 ## Current directory
 {cwd}
+
+## Current date
+{date}
 """
 
 
@@ -80,7 +83,8 @@ class App:
         web_search.register(toolset)
 
         # --- 3. Build system prompt ---
-        system_prompt = SYSTEM_PROMPT.format(cwd=os.getcwd())
+        from datetime import date
+        system_prompt = SYSTEM_PROMPT.format(cwd=os.getcwd(), date=date.today().isoformat())
 
         # --- 4. Create agent ---
         config = AgentConfig(max_steps=self.max_steps)
