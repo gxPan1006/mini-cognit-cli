@@ -3,6 +3,7 @@ name = "mini-cognit-cli"
 version = "0.1.0"
 description = "A minimal CLI AI agent, inspired by kimi-cli architecture."
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "openai>=1.30.0",
