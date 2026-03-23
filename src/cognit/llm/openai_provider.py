@@ -77,13 +77,18 @@ class OpenAIProvider:
         if tools:
             kwargs["tools"] = tools
 
+        logger.info("API call — model=%s, messages=%d, tools=%d, thinking=%s",
+                    self._model, len(messages), len(tools) if tools else 0, self._thinking)
+
         # Retry on transient errors (400/429/5xx)
         last_error: Exception | None = None
         for attempt in range(MAX_RETRIES):
             try:
                 stream = await self._client.chat.completions.create(**kwargs)
+                chunk_count = 0
 
                 async for chunk in stream:
+                    chunk_count += 1
                     delta = chunk.choices[0].delta if chunk.choices else None
                     if delta is None:
                         continue
@@ -108,6 +113,7 @@ class OpenAIProvider:
                                 "arguments": (tc_delta.function.arguments if tc_delta.function else "") or "",
                             }
 
+                logger.info("Stream completed — received %d chunks", chunk_count)
                 yield {"type": "done"}
                 return  # success, exit retry loop
 
@@ -116,10 +122,13 @@ class OpenAIProvider:
                 status = getattr(e, "status_code", None)
                 # Don't retry on client errors (auth, bad request, etc.)
                 if status and 400 <= status < 500:
+                    logger.error("API client error (status=%s), not retrying: %s", status, e)
                     raise
                 delay = RETRY_DELAYS[min(attempt, len(RETRY_DELAYS) - 1)]
-                logger.warning(f"API error (attempt {attempt + 1}/{MAX_RETRIES}): {e}. Retrying in {delay}s...")
+                logger.warning("API error (attempt %d/%d, status=%s): %s. Retrying in %ds...",
+                               attempt + 1, MAX_RETRIES, status, e, delay)
                 await asyncio.sleep(delay)
 
         # All retries exhausted
+        logger.error("All %d retries exhausted, raising last error: %s", MAX_RETRIES, last_error)
         raise last_error  # type: ignore[misc]

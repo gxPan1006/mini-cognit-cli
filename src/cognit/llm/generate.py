@@ -6,10 +6,14 @@ step()     = generate() + tool dispatch
 
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Sequence
 
 from cognit.llm.message import Message, TextPart, ThinkPart, ToolCall
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -43,6 +47,9 @@ async def generate(
     on_thinking_delta: Callable[[str], None] | None = None,
 ) -> GenerateResult:
     """Call the LLM, stream deltas, return assembled Message."""
+
+    logger.info("generate() called — history_len=%d, tools=%d", len(history), len(tools))
+    t0 = time.monotonic()
 
     text_parts: list[str] = []
     thinking_parts: list[str] = []
@@ -91,7 +98,10 @@ async def generate(
         acc = tc_accum[idx]
         tool_calls.append(ToolCall(id=acc["id"], name=acc["name"], arguments=acc["arguments"]))
 
+    elapsed = time.monotonic() - t0
     message = Message(role="assistant", content=content, tool_calls=tool_calls)
+    logger.info("generate() completed in %.2fs — text_len=%d, thinking_len=%d, tool_calls=%d",
+                elapsed, len(full_text), len(full_thinking), len(tool_calls))
     return GenerateResult(message=message)
 
 

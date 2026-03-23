@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import inspect
 import json
+import logging
+import time
 from dataclasses import dataclass
 from typing import Any, Callable, Awaitable
 
 from cognit.llm.message import ToolCall, ToolResult
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -79,6 +83,7 @@ class Toolset:
         """Execute a tool call and return the result."""
         td = self._tools.get(tool_call.name)
         if td is None:
+            logger.error("Unknown tool called: %s (id=%s)", tool_call.name, tool_call.id)
             return ToolResult(
                 tool_call_id=tool_call.id,
                 content=f"Error: unknown tool '{tool_call.name}'",
@@ -93,17 +98,27 @@ class Toolset:
             try:
                 decoder = json.JSONDecoder()
                 args, _ = decoder.raw_decode(tool_call.arguments)
+                logger.warning("Recovered from malformed JSON for tool %s", tool_call.name)
             except (json.JSONDecodeError, ValueError) as e2:
+                logger.error("Failed to parse tool arguments for %s: %s — raw: %s",
+                             tool_call.name, e2, tool_call.arguments[:500])
                 return ToolResult(
                     tool_call_id=tool_call.id,
                     content=f"Error parsing tool arguments: {e2}",
                     is_error=True,
                 )
 
+        logger.debug("Executing tool %s with args: %s", tool_call.name, json.dumps(args)[:500])
+        t0 = time.monotonic()
         try:
             result = await td.handler(**args)
+            elapsed = time.monotonic() - t0
+            logger.info("Tool %s completed in %.2fs — result_len=%d", tool_call.name, elapsed, len(result))
+            logger.debug("Tool %s result preview: %s", tool_call.name, result[:300])
             return ToolResult(tool_call_id=tool_call.id, content=result)
         except Exception as e:
+            elapsed = time.monotonic() - t0
+            logger.exception("Tool %s failed after %.2fs: %s", tool_call.name, elapsed, e)
             return ToolResult(
                 tool_call_id=tool_call.id,
                 content=f"Tool execution error: {type(e).__name__}: {e}",

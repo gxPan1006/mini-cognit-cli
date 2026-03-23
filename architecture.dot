@@ -1,0 +1,238 @@
+digraph mini_cognit_cli {
+    // ── Global ──
+    rankdir=TB;
+    fontname="Helvetica Neue";
+    fontsize=13;
+    bgcolor="#1e1e2e";
+    pad=0.5;
+    nodesep=0.6;
+    ranksep=0.8;
+    compound=true;
+
+    node [
+        fontname="Helvetica Neue",
+        fontsize=11,
+        style="filled,rounded",
+        shape=box,
+        color="#45475a",
+        fontcolor="#cdd6f4",
+        fillcolor="#313244",
+        penwidth=1.2
+    ];
+
+    edge [
+        fontname="Helvetica Neue",
+        fontsize=9,
+        color="#6c7086",
+        fontcolor="#a6adc8",
+        arrowsize=0.7,
+        penwidth=1.0
+    ];
+
+    // ════════════════════════════════════════════════════
+    // Cluster: Entry Point
+    // ════════════════════════════════════════════════════
+    subgraph cluster_entry {
+        label="Entry Point";
+        fontcolor="#f5c2e7";
+        color="#45475a";
+        style="dashed,rounded";
+
+        cli [
+            label="cli.py\n(Typer CLI)",
+            fillcolor="#45475a",
+            fontcolor="#f5c2e7"
+        ];
+    }
+
+    // ════════════════════════════════════════════════════
+    // Cluster: Orchestration
+    // ════════════════════════════════════════════════════
+    subgraph cluster_app {
+        label="Orchestration";
+        fontcolor="#89b4fa";
+        color="#45475a";
+        style="dashed,rounded";
+
+        app [
+            label="app.py\n(App — wires everything)",
+            fillcolor="#45475a",
+            fontcolor="#89b4fa"
+        ];
+
+        config [
+            label="config.py\n(cognit.toml loader)",
+            fillcolor="#313244",
+            fontcolor="#a6e3a1"
+        ];
+    }
+
+    // ════════════════════════════════════════════════════
+    // Cluster: Soul (Agent Core)
+    // ════════════════════════════════════════════════════
+    subgraph cluster_soul {
+        label="soul/ — Agent Core";
+        fontcolor="#fab387";
+        color="#45475a";
+        style="dashed,rounded";
+
+        agent [
+            label="agent.py\n(Agent loop)",
+            fillcolor="#45475a",
+            fontcolor="#fab387"
+        ];
+
+        context [
+            label="context.py\n(Context / history)",
+            fillcolor="#313244"
+        ];
+
+        compaction [
+            label="compaction.py\n(Context compaction)",
+            fillcolor="#313244"
+        ];
+
+        toolset [
+            label="toolset.py\n(Toolset registry)",
+            fillcolor="#313244"
+        ];
+    }
+
+    // ════════════════════════════════════════════════════
+    // Cluster: LLM Layer
+    // ════════════════════════════════════════════════════
+    subgraph cluster_llm {
+        label="llm/ — LLM Abstraction";
+        fontcolor="#a6e3a1";
+        color="#45475a";
+        style="dashed,rounded";
+
+        message [
+            label="message.py\n(Message / ToolCall\nToolResult / ContentPart)",
+            fillcolor="#45475a",
+            fontcolor="#a6e3a1"
+        ];
+
+        generate [
+            label="generate.py\n(generate + step)",
+            fillcolor="#313244"
+        ];
+
+        openai_provider [
+            label="openai_provider.py\n(OpenAIProvider)",
+            fillcolor="#313244"
+        ];
+    }
+
+    // ════════════════════════════════════════════════════
+    // Cluster: Tools
+    // ════════════════════════════════════════════════════
+    subgraph cluster_tools {
+        label="tools/ — Built-in Tools";
+        fontcolor="#f9e2af";
+        color="#45475a";
+        style="dashed,rounded";
+
+        file_read   [label="file_read.py",   fillcolor="#313244"];
+        file_write  [label="file_write.py",  fillcolor="#313244"];
+        shell       [label="shell.py",       fillcolor="#313244"];
+        grep_tool   [label="grep.py",        fillcolor="#313244"];
+        web_search  [label="web_search.py",  fillcolor="#313244"];
+    }
+
+    // ════════════════════════════════════════════════════
+    // Cluster: UI
+    // ════════════════════════════════════════════════════
+    subgraph cluster_ui {
+        label="ui/ — Terminal Interface";
+        fontcolor="#cba6f7";
+        color="#45475a";
+        style="dashed,rounded";
+
+        terminal [
+            label="terminal.py\n(TerminalUI\nprompt-toolkit + rich)",
+            fillcolor="#45475a",
+            fontcolor="#cba6f7"
+        ];
+    }
+
+    // ════════════════════════════════════════════════════
+    // External
+    // ════════════════════════════════════════════════════
+    openai_api [
+        label="OpenAI API\n(or compatible)",
+        shape=ellipse,
+        fillcolor="#181825",
+        fontcolor="#6c7086",
+        style="filled,dashed"
+    ];
+
+    user [
+        label="User\n(Terminal)",
+        shape=ellipse,
+        fillcolor="#181825",
+        fontcolor="#6c7086",
+        style="filled,dashed"
+    ];
+
+    // ════════════════════════════════════════════════════
+    // Edges — primary flow
+    // ════════════════════════════════════════════════════
+
+    // Entry
+    cli -> app [label="creates App\n& asyncio.run()"];
+
+    // App wiring
+    app -> config       [label="load_config()"];
+    app -> openai_provider [label="creates"];
+    app -> toolset      [label="creates"];
+    app -> agent        [label="creates\n(provider, toolset,\nsystem_prompt)"];
+    app -> terminal     [label="creates"];
+
+    // Tool registration
+    app -> file_read   [label="register()", style=dashed, color="#f9e2af"];
+    app -> file_write  [label="register()", style=dashed, color="#f9e2af"];
+    app -> shell       [label="register()", style=dashed, color="#f9e2af"];
+    app -> grep_tool   [label="register()", style=dashed, color="#f9e2af"];
+    app -> web_search  [label="register()", style=dashed, color="#f9e2af"];
+
+    // REPL loop
+    terminal -> user [label="prompt / display", dir=both, color="#cba6f7"];
+    app -> agent [label="agent.run()\n(REPL loop)", style=bold, color="#89b4fa"];
+
+    // Agent internals
+    agent -> context    [label="add / read\nmessages"];
+    agent -> compaction [label="compact\nif needed"];
+    agent -> generate   [label="step()"];
+    agent -> toolset    [label="execute()\ntool calls"];
+
+    // Generate
+    generate -> openai_provider [label="provider.generate()"];
+    generate -> message [label="assembles\nMessage"];
+    generate -> toolset [label="tool_executor\n.execute()"];
+
+    // Provider
+    openai_provider -> openai_api [label="HTTP streaming", style=dashed];
+    openai_provider -> message [label="uses Message\n.to_openai()"];
+
+    // Compaction
+    compaction -> context  [label="replace_with_summary()"];
+    compaction -> generate [label="generate()\nfor summary"];
+
+    // Toolset → Message (shared type)
+    toolset -> message [label="ToolCall\nToolResult", style=dotted];
+
+    // Tools → Toolset
+    file_read   -> toolset [label="@toolset.tool()", style=dashed, color="#f9e2af"];
+    file_write  -> toolset [label="@toolset.tool()", style=dashed, color="#f9e2af"];
+    shell       -> toolset [label="@toolset.tool()", style=dashed, color="#f9e2af"];
+    grep_tool   -> toolset [label="@toolset.tool()", style=dashed, color="#f9e2af"];
+    web_search  -> toolset [label="@toolset.tool()", style=dashed, color="#f9e2af"];
+
+    // Callbacks from agent → UI
+    agent -> terminal [
+        label="callbacks:\non_text_delta\non_tool_start\non_tool_end\napproval_callback",
+        style=dotted,
+        color="#cba6f7"
+    ];
+}

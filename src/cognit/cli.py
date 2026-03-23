@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
+from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -14,6 +18,25 @@ cli = typer.Typer(
 )
 
 
+def _setup_logging(verbose: bool = False) -> Path:
+    """Configure logging to file. Returns the log file path."""
+    log_dir = Path.home() / ".cognit" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    log_file = log_dir / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    level = logging.DEBUG if verbose else logging.INFO
+
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        handlers=[
+            logging.FileHandler(log_file, encoding="utf-8"),
+        ],
+    )
+    return log_file
+
+
 @cli.command()
 def chat(
     model: str = typer.Option("gpt-4o", "--model", "-m", help="Model name"),
@@ -23,8 +46,15 @@ def chat(
     yolo: bool = typer.Option(False, "--yolo", "-y", help="Bypass all tool approval prompts (auto-approve everything)"),
     thinking: bool = typer.Option(False, "--thinking", "-t", help="Enable extended thinking (reasoning models)"),
     thinking_budget: int = typer.Option(10000, "--thinking-budget", help="Max tokens for thinking (default: 10000)"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug-level logging"),
 ) -> None:
     """Start an interactive chat session with the AI agent."""
+    log_file = _setup_logging(verbose)
+
+    logger = logging.getLogger("cognit")
+    logger.info("Session started — model=%s, max_steps=%d, yolo=%s, thinking=%s", model, max_steps, yolo, thinking)
+    logger.info("Log file: %s", log_file)
+
     from cognit.app import App
 
     app = App(
@@ -36,7 +66,14 @@ def chat(
         thinking=thinking,
         thinking_budget=thinking_budget,
     )
-    asyncio.run(app.run())
+    try:
+        asyncio.run(app.run())
+    except Exception:
+        logger.exception("Unhandled exception in app.run()")
+        raise
+    finally:
+        logger.info("Session ended")
+        typer.echo(f"\n📋 Log saved to: {log_file}")
 
 
 @cli.command()

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 from cognit.llm.openai_provider import OpenAIProvider
 from cognit.soul.agent import Agent, AgentConfig
@@ -105,11 +108,15 @@ class App:
             mode_label += " [yellow bold]YOLO[/yellow bold]"
         ui.print_welcome(mode_label)
 
+        logger.info("REPL loop starting — model=%s, max_steps=%d", model, self.max_steps)
+
         # --- 6. Main REPL loop ---
+        turn = 0
         while True:
             try:
                 user_input = await ui.get_input()
             except KeyboardInterrupt:
+                logger.info("KeyboardInterrupt during input, exiting REPL")
                 break
 
             if not user_input:
@@ -118,6 +125,7 @@ class App:
             # --- slash commands ---
             if user_input.startswith("/"):
                 cmd = user_input.lower().strip()
+                logger.info("Slash command: %s", cmd)
                 if cmd in ("/exit", "/quit", "/q"):
                     ui.print_info("Goodbye!")
                     break
@@ -137,6 +145,8 @@ class App:
                     continue
 
             # --- run agent ---
+            turn += 1
+            logger.info("=== Turn %d start === user_input=%r", turn, user_input[:200])
             ui.start_response()
             try:
                 approval = None if self.yolo else ui.approval_callback
@@ -148,9 +158,14 @@ class App:
                     on_tool_end=ui.on_tool_end,
                     approval_callback=approval,
                 )
+                logger.info("=== Turn %d completed normally ===", turn)
             except KeyboardInterrupt:
+                logger.info("=== Turn %d interrupted by user (KeyboardInterrupt) ===", turn)
                 ui.print_info("\n[interrupted]")
+                agent.context.repair()
             except Exception as e:
+                logger.exception("=== Turn %d failed with exception ===", turn)
                 ui.print_error(f"{type(e).__name__}: {e}")
+                agent.context.repair()
             finally:
                 ui.end_response()

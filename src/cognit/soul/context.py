@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from cognit.llm.message import Message
+
+logger = logging.getLogger(__name__)
 
 
 class Context:
@@ -43,6 +47,35 @@ class Context:
             return
         kept = self._messages[-keep_last_n:]
         self._messages = [Message.system(f"[Conversation summary]\n{summary}")] + kept
+
+    def repair(self) -> None:
+        """Fix corrupted context: ensure every assistant tool_call has a matching tool_result.
+
+        If the last assistant message has tool_calls without corresponding tool_results,
+        remove the orphaned assistant message to prevent API 400 errors.
+        """
+        if not self._messages:
+            return
+
+        # Find the last assistant message with tool_calls
+        for i in range(len(self._messages) - 1, -1, -1):
+            msg = self._messages[i]
+            if msg.role == "assistant" and msg.tool_calls:
+                # Check that each tool_call has a tool_result after it
+                expected_ids = {tc.id for tc in msg.tool_calls}
+                found_ids = set()
+                for j in range(i + 1, len(self._messages)):
+                    if self._messages[j].role == "tool" and self._messages[j].tool_call_id:
+                        found_ids.add(self._messages[j].tool_call_id)
+                missing = expected_ids - found_ids
+                if missing:
+                    logger.warning("Repairing context: removing orphaned assistant message "
+                                   "at index %d with %d missing tool_results (ids: %s)",
+                                   i, len(missing), missing)
+                    # Remove the assistant message and any partial tool_results
+                    self._messages = self._messages[:i]
+                    return
+                break  # found a valid assistant+tool_results pair, stop
 
     def clear(self) -> None:
         self._messages.clear()
