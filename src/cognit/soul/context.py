@@ -30,12 +30,15 @@ class Context:
         self._messages.append(Message.tool_result(tool_call_id, content, is_error))
 
     def estimated_tokens(self) -> int:
-        """Rough token estimate: ~4 chars per token."""
-        total_chars = sum(
-            len(m.text) + sum(len(tc.arguments) for tc in m.tool_calls)
-            for m in self._messages
-        )
-        return total_chars // 4
+        """Rough token estimate: ~4 chars per token, images ~1000 tokens each."""
+        from cognit.llm.message import ImagePart
+
+        total_chars = 0
+        image_count = 0
+        for m in self._messages:
+            total_chars += len(m.text) + sum(len(tc.arguments) for tc in m.tool_calls)
+            image_count += sum(1 for p in m.content if isinstance(p, ImagePart))
+        return total_chars // 4 + image_count * 1000
 
     def needs_compaction(self, reserve: int = 30_000) -> bool:
         """True if the context is getting close to the limit."""

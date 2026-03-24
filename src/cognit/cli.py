@@ -46,6 +46,8 @@ def chat(
     yolo: bool = typer.Option(False, "--yolo", "-y", help="Bypass all tool approval prompts (auto-approve everything)"),
     thinking: bool = typer.Option(False, "--thinking", "-t", help="Enable extended thinking (reasoning models)"),
     thinking_budget: int = typer.Option(10000, "--thinking-budget", help="Max tokens for thinking (default: 10000)"),
+    resume: bool = typer.Option(False, "--continue", "-c", help="Resume the most recent session"),
+    session: Optional[str] = typer.Option(None, "--session", "-s", help="Resume a specific session by ID"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug-level logging"),
 ) -> None:
     """Start an interactive chat session with the AI agent."""
@@ -65,6 +67,8 @@ def chat(
         yolo=yolo,
         thinking=thinking,
         thinking_budget=thinking_budget,
+        session_id=session,
+        resume=resume,
     )
     try:
         asyncio.run(app.run())
@@ -81,6 +85,25 @@ def version() -> None:
     """Show version info."""
     from cognit import __version__
     typer.echo(f"mini-cognit-cli v{__version__}")
+
+
+@cli.command()
+def sessions() -> None:
+    """List saved sessions."""
+    from cognit.soul.session import list_sessions
+    sess_list = list_sessions(limit=20)
+    if not sess_list:
+        typer.echo("No saved sessions.")
+        return
+    typer.echo("Recent sessions:\n")
+    for s in sess_list:
+        typer.echo(
+            f"  {s['session_id']}  {s.get('model', '?'):20s}  "
+            f"{s.get('message_count', 0):3d} msgs  "
+            f"{s.get('updated_at', '')[:19]}"
+        )
+    typer.echo(f"\nResume with: cognit chat --session <id>")
+    typer.echo(f"Resume latest: cognit chat --continue")
 
 
 if __name__ == "__main__":

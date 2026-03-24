@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from cognit.llm.generate import step
-from cognit.llm.message import ToolCall
+from cognit.llm.message import Message, ToolCall
 from cognit.soul.compaction import compact_context
 from cognit.soul.context import Context
 from cognit.soul.toolset import Toolset
@@ -40,6 +40,8 @@ class Agent:
     async def run(
         self,
         user_input: str,
+        *,
+        images: list[str] | None = None,
         on_text_delta: Callable[[str], None] | None = None,
         on_thinking_delta: Callable[[str], None] | None = None,
         on_tool_start: Callable[[ToolCall], None] | None = None,
@@ -48,10 +50,17 @@ class Agent:
     ) -> str:
         """Handle one user turn: loop until the LLM stops calling tools.
 
+        Args:
+            user_input: The user's message text.
+            images: Optional list of image data URIs or URLs to attach to the message.
+
         Returns the final assistant text response.
         """
         logger.info("Agent.run() called — user_input=%r (len=%d)", user_input[:200], len(user_input))
-        self.context.add_user(user_input)
+        if images:
+            self.context.add(Message.user_with_images(user_input, images))
+        else:
+            self.context.add_user(user_input)
 
         steps = 0
         final_text = ""
@@ -97,8 +106,26 @@ class Agent:
             # Tool results MUST be added right after assistant message to avoid
             # corrupted context (API requires every tool_use has a tool_result)
             self.context.add(result.message)
+
+            # Collect images from read_media tool results
+            pending_images: list[str] = []
             for tr in result.tool_results:
+                tr_text = tr.text
+                if tr_text.startswith("__IMAGE__:"):
+                    # Extract image data URI and replace tool result with description
+                    data_uri = tr_text[len("__IMAGE__:"):]
+                    pending_images.append(data_uri)
+                    # Replace with a text-only result so context stays clean
+                    from cognit.llm.message import TextPart
+                    tr.content = [TextPart("[Image loaded — see below]")]
                 self.context.add(tr)
+
+            # If tools returned images, inject them as a user message so the LLM can see them
+            if pending_images:
+                self.context.add(Message.user_with_images(
+                    "[The image(s) you requested are attached below. Describe or analyze them as needed.]",
+                    pending_images,
+                ))
 
             logger.info("Step %d result — text_len=%d, tool_calls=%d",
                         steps, len(result.message.text), len(result.message.tool_calls))
