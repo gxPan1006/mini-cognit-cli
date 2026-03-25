@@ -1,6 +1,6 @@
 """mini-cognit-cli — A minimal CLI AI agent, also usable as a Python SDK."""
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 from cognit.sdk import CognitAgent, ChatResult
 from cognit.soul.toolset import Toolset

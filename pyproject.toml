@@ -1,6 +1,6 @@
 [project]
 name = "mini-cognit-cli"
-version = "0.2.1"
+version = "0.2.2"
 description = "The AI coding agent you can read in an afternoon. ~2000 lines of Python, fully hackable."
 readme = "README.md"
 license = "MIT"
